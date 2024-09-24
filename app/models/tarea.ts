@@ -12,7 +12,7 @@ export default class Tarea extends BaseModel {
     declare descripcion: string | null
 
     @column()
-    declare estadoId: number | null
+    declare estadoId: number
 
     @column.dateTime({ autoCreate: true })
     declare createdAt: DateTime

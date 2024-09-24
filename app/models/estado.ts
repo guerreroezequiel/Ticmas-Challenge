@@ -6,7 +6,7 @@ export default class Estado extends BaseModel {
     declare id: number
 
     @column()
-    declare nombre: string | null
+    declare nombre: string
 
     @column.dateTime({ autoCreate: true })
     declare createdAt: DateTime
