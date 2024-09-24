@@ -1,12 +1,12 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
-export default class Tarea extends BaseModel {
+export default class Estado extends BaseModel {
     @column({ isPrimary: true })
     declare id: number
 
     @column()
-    declare estadoId: number | null
+    declare nombre: string | null
 
     @column.dateTime({ autoCreate: true })
     declare createdAt: DateTime
@@ -14,5 +14,3 @@ export default class Tarea extends BaseModel {
     @column.dateTime({ autoCreate: true, autoUpdate: true })
     declare updatedAt: DateTime
 }
-
-
