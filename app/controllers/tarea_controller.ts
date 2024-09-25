@@ -1,102 +1,165 @@
 import { HttpContext } from '@adonisjs/core/http'
 import Tarea from '#models/tarea'
+import Estado from '#models/estado'
 
 export default class TareasController {
 
     // CREAR UNA TAREA
     public async create({ request, response }: HttpContext) {
-        const data = request.only(['descripcion', 'estadoId'])
+        const data = request.only(['titulo', 'descripcion', 'estadoId'])
 
-        // Validar y combinar los datos
-        const tarea = new Tarea()
         try {
+            const tarea = new Tarea()
             tarea.merge(data)
+            const savedTarea = await tarea.save()
+            return response.status(201).json(savedTarea)
         } catch (error) {
-            return response.status(400).json({ message: 'Error al procesar los datos', error: error.message })
+            if (error.messages) {
+                return response.status(400).json({ message: 'Error al procesar los datos', error: error.messages })
+            }
+            return response.status(500).json({ message: 'Error al crear la tarea', error: error.message })
         }
-
-        // Guardar la tarea
-        return tarea.save()
-            .then((savedTarea) => {
-                return response.status(201).json(savedTarea)
-            })
-            .catch((error) => {
-                return response.status(500).json({ message: 'Error al crear la tarea', error: error.message })
-            })
     }
 
 
     // ACTUALIZAR UNA TAREA
     public async update({ params, request, response }: HttpContext) {
         const id = params.id
-        const data = request.only(['descripcion', 'estadoId'])
+        const data = request.only(['titulo', 'descripcion', 'estadoId'])
 
-        // Buscar la tarea por ID
-        const tarea = await Tarea.find(id)
-        if (!tarea) {
-            return response.status(404).json({ message: 'Tarea no encontrada' })
-        }
-
-        // Validar y combinar los datos
         try {
-            tarea.merge(data)
-        } catch (error) {
-            return response.status(400).json({ message: 'Error al procesar los datos', error: error.message })
-        }
+            const tarea = await Tarea.find(id)
+            if (!tarea) {
+                return response.status(404).json({ message: 'Tarea no encontrada' })
+            }
 
-        // Guardar la tarea actualizada
-        return tarea.save()
-            .then((updatedTarea) => {
-                return response.status(200).json(updatedTarea)
-            })
-            .catch((error) => {
-                return response.status(500).json({ message: 'Error al actualizar la tarea', error: error.message })
-            })
+            tarea.merge(data)
+
+            const updatedTarea = await tarea.save()
+            return response.status(200).json(updatedTarea)
+        } catch (error) {
+            if (error.name === 'ValidationException') {
+                return response.status(400).json({ message: 'Error al procesar los datos', error: error.message })
+            }
+            return response.status(500).json({ message: 'Error al actualizar la tarea', error: error.message })
+        }
     }
 
 
     // VER TODAS LAS TAREAS
     public async index({ response }: HttpContext) {
-        return Tarea.query().preload('estado')
-            .then((tareas) => {
-                return response.status(200).json(tareas)
+        try {
+            const tareas = await Tarea.query()
+                .preload('estado', (query) => {
+                    query.select('nombre')
+                })
+
+            const tareasConEstado = tareas.map(tarea => {
+                const tareaJson = tarea.toJSON()
+                tareaJson.estadoNombre = tarea.estado.nombre
+                delete tareaJson.estado
+
+                return tareaJson
             })
-            .catch((error) => {
-                return response.status(500).json({ message: 'Error al obtener las tareas', error: error.message })
-            })
+
+            return response.status(200).json(tareasConEstado)
+        } catch (error) {
+            return response.status(500).json({ message: 'Error al obtener las tareas', error: error.message })
+        }
     }
+
 
     // VER UNA TAREA
     public async show({ params, response }: HttpContext) {
         const id = params.id
 
-        return Tarea.find(id)
-            .then((tarea) => {
-                if (!tarea) {
-                    return response.status(404).json({ message: 'Tarea no encontrada' })
-                }
-                return response.status(200).json(tarea)
-            })
-            .catch((error) => {
-                return response.status(500).json({ message: 'Error al obtener la tarea', error: error.message })
-            })
+        try {
+            const tarea = await Tarea.query()
+                .where('id', id)
+                .preload('estado', (query) => {
+                    query.select('nombre')
+                })
+                .first()
+
+            if (!tarea) {
+                return response.status(404).json({ message: 'Tarea no encontrada' })
+            }
+
+            const tareaJson = tarea.toJSON()
+            tareaJson.estadoNombre = tarea.estado.nombre
+            delete tareaJson.estado
+
+            return response.status(200).json(tareaJson)
+        } catch (error) {
+            return response.status(500).json({ message: 'Error al obtener la tarea', error: error.message })
+        }
     }
+
+
+    // VER TAREAS POR ID DE ESTADO
+    public async indexByEstado({ params, response }: HttpContext) {
+        const estadoId = params.estadoId
+
+        try {
+            const tareas = await Tarea.query()
+                .where('estadoId', estadoId)
+                .preload('estado', (query) => {
+                    query.select('nombre')
+                })
+
+            const tareasConEstado = tareas.map(tarea => {
+                const tareaJson = tarea.toJSON()
+                tareaJson.estadoNombre = tarea.estado.nombre
+                delete tareaJson.estado
+
+                return tareaJson
+            })
+
+            return response.status(200).json(tareasConEstado)
+        } catch (error) {
+            return response.status(500).json({ message: 'Error al obtener las tareas por estado', error: error.message })
+        }
+    }
+
 
     // ELIMINAR UNA TAREA
     public async delete({ params, response }: HttpContext) {
         const id = params.id
 
-        return Tarea.query().where('id', id).preload('estado').first()
-            .then((tarea) => {
-                if (!tarea) {
-                    return response.status(404).json({ message: 'Tarea no encontrada' })
-                }
-                return tarea.delete().then(() => {
-                    return response.status(200).json({ message: 'Tarea eliminada correctamente' })
-                })
-            })
-            .catch((error) => {
-                return response.status(500).json({ message: 'Error al eliminar la tarea', error: error.message })
-            })
+        try {
+            const tarea = await Tarea.query().where('id', id).preload('estado').first()
+            if (!tarea) {
+                return response.status(404).json({ message: 'Tarea no encontrada' })
+            }
+            await tarea.delete()
+            return response.status(200).json({ message: 'Tarea eliminada correctamente' })
+        } catch (error) {
+            return response.status(500).json({ message: 'Error al eliminar la tarea', error: error.message })
+        }
+    }
+
+
+    // CAMBIAR EL ESTADO DE UNA TAREA
+    async cambiarEstado({ params, request, response }: HttpContext) {
+        try {
+            const tarea = await Tarea.find(params.id);
+            if (!tarea) {
+                return response.status(404).json({ message: 'Tarea no encontrada' });
+            }
+
+            const { estadoId } = request.only(['estadoId']);
+
+            const estado = await Estado.find(estadoId);
+            if (!estado) {
+                return response.status(400).json({ message: 'Estado no encontrado' });
+            }
+
+            tarea.estadoId = estadoId;
+            await tarea.save();
+
+            return response.json({ message: 'Estado actualizado correctamente', tarea });
+        } catch (error) {
+            return response.status(500).json({ message: 'Error al actualizar el estado', error });
+        }
     }
 }
