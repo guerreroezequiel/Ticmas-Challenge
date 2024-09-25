@@ -8,7 +8,7 @@ router.get('/tareas/:id', [TareaController, 'show'])
 router.post('/tareas', [TareaController, 'create'])
 router.put('/tareas/:id', [TareaController, 'update'])
 router.delete('/tareas/:id', [TareaController, 'delete'])
-router.get('/tareas/estado/:estadoId', [TareaController, 'indexByEstado'])
+router.get('/tareas/:estado', [TareaController, 'indexByEstado'])
 router.put('/tareas/:id/cambiar-estado', [TareaController, 'cambiarEstado']);
 router.get('/tareas/:id/tiempo-pasado', [TareaController, 'tiempoPasado']);
 

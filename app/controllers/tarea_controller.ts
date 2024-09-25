@@ -26,7 +26,7 @@ export default class TareasController {
 
     // ACTUALIZAR UNA TAREA
     public async update({ params, request, response }: HttpContext) {
-        const data = request.only(['titulo', 'descripcion', 'estadoId'])
+        const data = request.only(['titulo', 'descripcion'])
 
         try {
             const tarea = await Tarea.find(params.id)
@@ -95,34 +95,54 @@ export default class TareasController {
     }
 
 
-    // VER TAREAS POR ID DE ESTADO
     public async indexByEstado({ params, response }: HttpContext) {
-        const estadoId = params.estadoId
+        const nombreEstado = params.estado
+
+        if (!nombreEstado) {
+            return response.status(400).json({ message: 'El parámetro estado es requerido' })
+        }
 
         try {
+            // buscar el estado por su nombre
+            const estado = await Estado.query().where('nombre', nombreEstado).first()
+
+            if (!estado) {
+                return response.status(404).json({ message: 'Estado no encontrado' })
+            }
+            const estadoId = estado.id
+
+            if (!estadoId) {
+                return response.status(500).json({ message: 'Error al obtener el ID del estado' })
+            }
+
+            // buscar las tareas por estadoId
             const tareas = await Tarea.query()
                 .where('estadoId', estadoId)
                 .preload('estado', (query) => {
                     query.select('nombre')
                 })
 
+            if (tareas.length === 0) {
+                return response.status(404).json({ message: 'No se encontraron tareas para el estado proporcionado' })
+            }
+
             const tareasConEstado = tareas.map(tarea => {
                 const tareaJson = tarea.toJSON()
                 tareaJson.estadoNombre = tarea.estado.nombre
                 delete tareaJson.estado
-
                 return tareaJson
             })
 
             return response.status(200).json(tareasConEstado)
         } catch (error) {
+            console.error('Error al obtener las tareas por estado:', error)
             return response.status(500).json({ message: 'Error al obtener las tareas por estado', error: error.message })
         }
     }
 
 
     // ELIMINAR UNA TAREA
-    public async delete({ params, response }: HttpContext) {
+    public async delete({ params, response }: HttpContext) {  //borrado logico
         const id = params.id
 
         try {
@@ -130,10 +150,11 @@ export default class TareasController {
             if (!tarea) {
                 return response.status(404).json({ message: 'Tarea no encontrada' })
             }
-            await tarea.delete()
-            return response.status(200).json({ message: 'Tarea eliminada correctamente' })
+            tarea.deleted = true
+            await tarea.save()
+            return response.status(200).json({ message: 'Tarea marcada como eliminada correctamente' })
         } catch (error) {
-            return response.status(500).json({ message: 'Error al eliminar la tarea', error: error.message })
+            return response.status(500).json({ message: 'Error al marcar la tarea como eliminada', error: error.message })
         }
     }
 

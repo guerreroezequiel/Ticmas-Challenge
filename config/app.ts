@@ -37,4 +37,5 @@ export const http = defineConfig({
     secure: app.inProduction,
     sameSite: 'lax',
   },
+
 })
