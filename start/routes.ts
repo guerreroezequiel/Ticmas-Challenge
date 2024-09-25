@@ -10,6 +10,7 @@ router.put('/tareas/:id', [TareaController, 'update'])
 router.delete('/tareas/:id', [TareaController, 'delete'])
 router.get('/tareas/estado/:estadoId', [TareaController, 'indexByEstado'])
 router.put('/tareas/:id/cambiar-estado', [TareaController, 'cambiarEstado']);
+router.get('/tareas/:id/tiempo-pasado', [TareaController, 'tiempoPasado']);
 
 //ESTADOS
 router.get('/estados', [EstadoController, 'index'])

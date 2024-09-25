@@ -1,6 +1,7 @@
 import { HttpContext } from '@adonisjs/core/http'
 import Tarea from '#models/tarea'
 import Estado from '#models/estado'
+import { DateTime } from 'luxon'
 
 export default class TareasController {
 
@@ -12,6 +13,7 @@ export default class TareasController {
             const tarea = new Tarea()
             tarea.merge(data)
             const savedTarea = await tarea.save()
+
             return response.status(201).json(savedTarea)
         } catch (error) {
             if (error.messages) {
@@ -24,22 +26,21 @@ export default class TareasController {
 
     // ACTUALIZAR UNA TAREA
     public async update({ params, request, response }: HttpContext) {
-        const id = params.id
         const data = request.only(['titulo', 'descripcion', 'estadoId'])
 
         try {
-            const tarea = await Tarea.find(id)
+            const tarea = await Tarea.find(params.id)
             if (!tarea) {
                 return response.status(404).json({ message: 'Tarea no encontrada' })
             }
 
-            tarea.merge(data)
-
+            tarea.merge(data) // Actualiza los campos de la tarea con los datos recibidos
             const updatedTarea = await tarea.save()
+
             return response.status(200).json(updatedTarea)
         } catch (error) {
-            if (error.name === 'ValidationException') {
-                return response.status(400).json({ message: 'Error al procesar los datos', error: error.message })
+            if (error.messages) {
+                return response.status(400).json({ message: 'Error al procesar los datos', error: error.messages })
             }
             return response.status(500).json({ message: 'Error al actualizar la tarea', error: error.message })
         }
@@ -58,7 +59,6 @@ export default class TareasController {
                 const tareaJson = tarea.toJSON()
                 tareaJson.estadoNombre = tarea.estado.nombre
                 delete tareaJson.estado
-
                 return tareaJson
             })
 
@@ -78,8 +78,7 @@ export default class TareasController {
                 .where('id', id)
                 .preload('estado', (query) => {
                     query.select('nombre')
-                })
-                .first()
+                }).first()
 
             if (!tarea) {
                 return response.status(404).json({ message: 'Tarea no encontrada' })
@@ -148,8 +147,8 @@ export default class TareasController {
             }
 
             const { estadoId } = request.only(['estadoId']);
-
             const estado = await Estado.find(estadoId);
+
             if (!estado) {
                 return response.status(400).json({ message: 'Estado no encontrado' });
             }
@@ -160,6 +159,32 @@ export default class TareasController {
             return response.json({ message: 'Estado actualizado correctamente', tarea });
         } catch (error) {
             return response.status(500).json({ message: 'Error al actualizar el estado', error });
+        }
+    }
+
+    // CALCULAR TIEMPO PASADO DESDE LA CREACION DE UNA TAREA   
+    public async tiempoPasado({ params, response }: HttpContext) {
+        const id = params.id
+
+        try {
+            // Buscar la tarea por ID
+            const tarea = await Tarea.find(id);
+            if (!tarea) {
+                return response.status(404).json({ message: 'Tarea no encontrada' });
+            }
+
+            // Calcular la diferencia en días, horas y minutos
+            const diff = DateTime.now().diff(tarea.createdAt, ['days', 'hours', 'minutes']).toObject();
+            const tiempoPasadoFormateado = `${Math.floor(diff.days ?? 0)} días, ${Math.floor(diff.hours ?? 0)} horas, ${Math.floor(diff.minutes ?? 0)} minutos`;
+
+            return response.status(200).json({
+                tiempoPasado: tiempoPasadoFormateado,
+                fechaActual: DateTime.now().toFormat('dd/MM/yyyy HH:mm'),
+                fechaCreacion: tarea.createdAt.toFormat('dd/MM/yyyy HH:mm')
+            });
+        } catch (error) {
+            console.error('Error al obtener el tiempo pasado:', error);
+            return response.status(500).json({ message: 'Error al obtener el tiempo pasado', error: error.message });
         }
     }
 }

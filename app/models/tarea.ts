@@ -26,7 +26,7 @@ export default class Tarea extends BaseModel {
     @belongsTo(() => Estado)
     declare estado: BelongsTo<typeof Estado>
 
-    public serializeExtras() {
+    public formatFecha() {
         return {
             createdAt: this.createdAt.toFormat('dd/MM/yyyy HH:mm'), // Formateo automático al serializar
             updatedAt: this.updatedAt.toFormat('dd/MM/yyyy HH:mm'),
