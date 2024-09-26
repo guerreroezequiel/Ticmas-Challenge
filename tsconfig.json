@@ -1,7 +1,7 @@
 {
   "extends": "@adonisjs/tsconfig/tsconfig.app.json",
   "compilerOptions": {
-    "types": ["@adonisjs/core", "@japa/runner"],
+    "types": ["@adonisjs/core",  ],
     "rootDir": "./",
     "outDir": "./build"
   }

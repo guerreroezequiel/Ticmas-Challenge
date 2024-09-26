@@ -2,9 +2,15 @@ import { HttpContext } from '@adonisjs/core/http'
 import Tarea from '#models/tarea'
 import Estado from '#models/estado'
 import { DateTime } from 'luxon'
+import TareaRepository from '#repository/tareas_repository'
+import { inject } from '@adonisjs/core'
 
+@inject()
 export default class TareasController {
 
+    constructor(protected tareaRepository: TareaRepository) {
+
+    }
     // CREAR UNA TAREA
     public async create({ request, response }: HttpContext) {
         const data = request.only(['titulo', 'descripcion', 'estadoId'])
@@ -74,18 +80,14 @@ export default class TareasController {
         const id = params.id
 
         try {
-            const tarea = await Tarea.query()
-                .where('id', id)
-                .preload('estado', (query) => {
-                    query.select('nombre')
-                }).first()
+            const tarea = await this.tareaRepository.getTareaById(id)
 
             if (!tarea) {
                 return response.status(404).json({ message: 'Tarea no encontrada' })
             }
 
             const tareaJson = tarea.toJSON()
-            tareaJson.estadoNombre = tarea.estado.nombre
+            tareaJson.estadoNombre = tarea?.estado?.nombre
             delete tareaJson.estado
 
             return response.status(200).json(tareaJson)
@@ -162,7 +164,7 @@ export default class TareasController {
     // CAMBIAR EL ESTADO DE UNA TAREA
     async cambiarEstado({ params, request, response }: HttpContext) {
         try {
-            const tarea = await Tarea.find(params.id);
+            const tarea = await this.tareaRepository.find(params.id);
             if (!tarea) {
                 return response.status(404).json({ message: 'Tarea no encontrada' });
             }
