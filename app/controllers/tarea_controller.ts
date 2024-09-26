@@ -3,12 +3,13 @@ import Tarea from '#models/tarea'
 import Estado from '#models/estado'
 import { DateTime } from 'luxon'
 import TareaRepository from '#repository/tareas_repository'
+import EstadoRepository from '#repository/estados_repository'
 import { inject } from '@adonisjs/core'
 
 @inject()
 export default class TareasController {
 
-    constructor(protected tareaRepository: TareaRepository) {
+    constructor(protected tareaRepository: TareaRepository, protected estadoRepository: EstadoRepository) {
 
     }
     // CREAR UNA TAREA
@@ -18,7 +19,7 @@ export default class TareasController {
         try {
             const tarea = new Tarea()
             tarea.merge(data)
-            const savedTarea = await tarea.save()
+            const savedTarea = await this.tareaRepository.save(tarea)
 
             return response.status(201).json(savedTarea)
         } catch (error) {
@@ -35,13 +36,13 @@ export default class TareasController {
         const data = request.only(['titulo', 'descripcion'])
 
         try {
-            const tarea = await Tarea.find(params.id)
+            const tarea = await this.tareaRepository.find(params.id)
             if (!tarea) {
                 return response.status(404).json({ message: 'Tarea no encontrada' })
             }
 
             tarea.merge(data) // Actualiza los campos de la tarea con los datos recibidos
-            const updatedTarea = await tarea.save()
+            const updatedTarea = await this.tareaRepository.save(tarea)
 
             return response.status(200).json(updatedTarea)
         } catch (error) {
@@ -56,10 +57,7 @@ export default class TareasController {
     // VER TODAS LAS TAREAS
     public async index({ response }: HttpContext) {
         try {
-            const tareas = await Tarea.query()
-                .preload('estado', (query) => {
-                    query.select('nombre')
-                })
+            const tareas = await this.tareaRepository.getTareasConEstado()
 
             const tareasConEstado = tareas.map(tarea => {
                 const tareaJson = tarea.toJSON()
@@ -80,7 +78,7 @@ export default class TareasController {
         const id = params.id
 
         try {
-            const tarea = await this.tareaRepository.getTareaById(id)
+            const tarea = await this.tareaRepository.getTareaConEstado(id)
 
             if (!tarea) {
                 return response.status(404).json({ message: 'Tarea no encontrada' })
@@ -96,7 +94,7 @@ export default class TareasController {
         }
     }
 
-
+    //TAREAS POR ESTADO
     public async indexByEstado({ params, response }: HttpContext) {
         const nombreEstado = params.estado
 
@@ -118,11 +116,7 @@ export default class TareasController {
             }
 
             // buscar las tareas por estadoId
-            const tareas = await Tarea.query()
-                .where('estadoId', estadoId)
-                .preload('estado', (query) => {
-                    query.select('nombre')
-                })
+            const tareas = await this.tareaRepository.getTareasPorEstado(estadoId)
 
             if (tareas.length === 0) {
                 return response.status(404).json({ message: 'No se encontraron tareas para el estado proporcionado' })
@@ -145,15 +139,13 @@ export default class TareasController {
 
     // ELIMINAR UNA TAREA
     public async delete({ params, response }: HttpContext) {  //borrado logico
-        const id = params.id
-
         try {
-            const tarea = await Tarea.query().where('id', id).preload('estado').first()
+            const tarea = await this.tareaRepository.find(params.id)
             if (!tarea) {
                 return response.status(404).json({ message: 'Tarea no encontrada' })
             }
             tarea.deleted = true
-            await tarea.save()
+            await this.tareaRepository.save(tarea)
             return response.status(200).json({ message: 'Tarea marcada como eliminada correctamente' })
         } catch (error) {
             return response.status(500).json({ message: 'Error al marcar la tarea como eliminada', error: error.message })
@@ -170,14 +162,14 @@ export default class TareasController {
             }
 
             const { estadoId } = request.only(['estadoId']);
-            const estado = await Estado.find(estadoId);
+            const estado = await this.estadoRepository.find(estadoId);
 
             if (!estado) {
                 return response.status(400).json({ message: 'Estado no encontrado' });
             }
 
             tarea.estadoId = estadoId;
-            await tarea.save();
+            await this.tareaRepository.save(tarea);
 
             return response.json({ message: 'Estado actualizado correctamente', tarea });
         } catch (error) {
@@ -191,7 +183,7 @@ export default class TareasController {
 
         try {
             // Buscar la tarea por ID
-            const tarea = await Tarea.find(id);
+            const tarea = await this.tareaRepository.find(id);
             if (!tarea) {
                 return response.status(404).json({ message: 'Tarea no encontrada' });
             }
