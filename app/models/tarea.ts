@@ -31,10 +31,12 @@ export default class Tarea extends BaseModel {
 
     public formatFecha() {
         return {
-            createdAt: this.createdAt.toFormat('dd/MM/yyyy HH:mm'), // Formateo automático al serializar
+            createdAt: this.createdAt.toFormat('dd/MM/yyyy HH:mm'),
             updatedAt: this.updatedAt.toFormat('dd/MM/yyyy HH:mm'),
         }
     }
+
+
 }
 
 

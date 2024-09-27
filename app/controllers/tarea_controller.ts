@@ -15,14 +15,14 @@ export default class TareasController {
     // CREAR UNA TAREA
     public async create({ request, response }: HttpContext) {
         const data = request.only(['titulo', 'descripcion', 'estadoId'])
-
         try {
             const tarea = new Tarea()
-            tarea.merge(data)
+            Object.assign(tarea, data)
             const savedTarea = await this.tareaRepository.save(tarea)
 
             return response.status(201).json(savedTarea)
         } catch (error) {
+            console.error('Error al crear la tarea:', error)
             if (error.messages) {
                 return response.status(400).json({ message: 'Error al procesar los datos', error: error.messages })
             }
@@ -33,19 +33,19 @@ export default class TareasController {
 
     // ACTUALIZAR UNA TAREA
     public async update({ params, request, response }: HttpContext) {
-        const data = request.only(['titulo', 'descripcion'])
-
+        const data = request.only(['titulo', 'descripcion',])
         try {
             const tarea = await this.tareaRepository.find(params.id)
             if (!tarea) {
                 return response.status(404).json({ message: 'Tarea no encontrada' })
             }
 
-            tarea.merge(data) // Actualiza los campos de la tarea con los datos recibidos
+            Object.assign(tarea, data)
             const updatedTarea = await this.tareaRepository.save(tarea)
 
             return response.status(200).json(updatedTarea)
         } catch (error) {
+            console.error('Error al actualizar la tarea:', error)
             if (error.messages) {
                 return response.status(400).json({ message: 'Error al procesar los datos', error: error.messages })
             }
