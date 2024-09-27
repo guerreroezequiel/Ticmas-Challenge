@@ -84,7 +84,7 @@ export default class TareasController {
             }
 
             const tareaJson = tarea.toJSON()
-            tareaJson.estadoNombre = tarea?.estado?.nombre
+            tareaJson.estadoNombre = tarea.estado.nombre
             delete tareaJson.estado
 
             return response.status(200).json(tareaJson)
@@ -102,8 +102,10 @@ export default class TareasController {
 
         try {
             // buscar el estado por su nombre
+            console.log('nombreEstado:  ' + nombreEstado)
             const estado = await this.estadoRepository.getEstadoByName(nombreEstado)
             if (!estado) {
+                console.log(estado)
                 return response.status(404).json({ message: 'Estado no encontrado' })
             }
             const estadoId = estado.id
