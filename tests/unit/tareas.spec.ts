@@ -6,6 +6,7 @@ import TareaController from '#controllers/tarea_controller'
 import testUtils from '@adonisjs/core/services/test_utils'
 import EstadoRepository from '#repository/estados_repository'
 import Estado from '#models/estado'
+import EstadoController from '#controllers/estado_controller'
 
 
 test.group('Tareas', (group) => {
@@ -15,20 +16,14 @@ test.group('Tareas', (group) => {
 
     private tareas: Tarea[] = []
 
-    public async getTareasPorEstado(estadoId: number): Promise<Tarea[]> {
-      return this.tareas.filter(tarea => tarea.estadoId === estadoId)
-    }
   }
 
   // FAKE ESTADO REPOSITORY
   class FakeEstadoRepository extends EstadoRepository {
 
-    private estados: Estado[] = [];
+    private estados: Estado[] = [
+    ]
 
-    // Buscar estado por nombre
-    public async getEstadoByName(nombre: string): Promise<Estado | null> {
-      return this.estados.find(estado => estado.nombre === nombre) || null
-    }
   }
   // SWAP REPOSITORIES
   group.setup(() => {
@@ -40,7 +35,7 @@ test.group('Tareas', (group) => {
 
   ////////////TESTS////////////
 
-  // TEST: INDEX
+  // TEST: comprobar tareas
   test('obtener todas las tareas', async ({ assert }) => {
     const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
     const ctx = await testUtils.createHttpContext()
@@ -52,7 +47,26 @@ test.group('Tareas', (group) => {
     assert.equal(ctx.response.getStatus(), 200)
     assert.isArray(tareas)
     assert.isNotEmpty(tareas)
-    console.log(tareas.length)
+    console.log('tareas:' + tareas.length)
+  })
+
+  //TEST: comprobar estados
+  test('comprobar estados', async ({ assert }) => {
+    const estadoController = new EstadoController()
+    const ctx = await testUtils.createHttpContext()
+
+    await estadoController.index(ctx)
+
+    const responseBody = ctx.response.getBody()
+    console.log('estados:' + responseBody.length)
+
+    assert.equal(ctx.response.getStatus(), 200)
+    assert.isArray(responseBody)
+    assert.isNotEmpty(responseBody)
+    responseBody.forEach((estado: Estado) => {
+      assert.property(estado, 'id')
+      assert.property(estado, 'nombre')
+    })
   })
 
 
@@ -66,7 +80,7 @@ test.group('Tareas', (group) => {
     await tareaController.show(ctx)
 
     const responseBody = ctx.response.getBody()
-    console.log(responseBody)
+
     assert.equal(ctx.response.getStatus(), 200)
     assert.isObject(responseBody)
     assert.property(responseBody, 'id')
@@ -107,7 +121,6 @@ test.group('Tareas', (group) => {
     await tareaController.create(ctx)
 
     const responseBody = ctx.response.getBody()
-    console.log(responseBody)
 
     assert.equal(ctx.response.getStatus(), 201)
     assert.isObject(responseBody)
@@ -119,7 +132,7 @@ test.group('Tareas', (group) => {
   })
 
 
-  // TEST: UPDATE
+  // TEST: UPDATE titulo o descripción
   test('actualizar una tarea', async ({ assert }) => {
     const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
     const ctx = await testUtils.createHttpContext()
@@ -136,9 +149,9 @@ test.group('Tareas', (group) => {
 
     assert.equal(ctx.response.getStatus(), 200)
     assert.isObject(responseBody)
-    assert.equal(responseBody.id, 1)
-    assert.equal(responseBody.titulo, 'Tarea 1 Actualizada')
-    assert.equal(responseBody.descripcion, 'Descripción de la tarea 1 actualizada')
+    assert.equal(responseBody.id, ctx.params.id)
+    assert.equal(responseBody.titulo, ctx.request.body().titulo)
+    assert.equal(responseBody.descripcion, ctx.request.body().descripcion)
   })
 
 
@@ -147,25 +160,27 @@ test.group('Tareas', (group) => {
     const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
     const ctx = await testUtils.createHttpContext()
 
-    ctx.params = { id: 1 }
+    ctx.params = { id: 2 }
 
     await tareaController.delete(ctx)
 
     const responseBody = ctx.response.getBody()
-
+    console.log(responseBody)
+    assert.equal(ctx.response.getStatus(), 200)
     assert.equal(ctx.response.getStatus(), 200)
     assert.isObject(responseBody)
-    assert.equal(responseBody.message, 'Tarea marcada como eliminada correctamente')
+    assert.equal(responseBody.deletedTarea.$attributes.id, ctx.params.id)
+    assert.equal(responseBody.deletedTarea.$attributes.deleted, true)
   })
 
 
-  // TEST: CAMBIAR ESTADO
+  // TEST: actualizar ESTADO
   test('cambiar el estado de una tarea', async ({ assert }) => {
     const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
     const ctx = await testUtils.createHttpContext()
 
     ctx.params = { id: 1 }
-    ctx.request.updateBody({ estadoId: 1 })
+    ctx.request.updateBody({ estadoId: 4 })
 
     await tareaController.cambiarEstado(ctx)
 
@@ -174,7 +189,7 @@ test.group('Tareas', (group) => {
     assert.equal(ctx.response.getStatus(), 200)
     assert.isObject(responseBody)
     assert.equal(responseBody.message, 'Estado actualizado correctamente')
-    assert.equal(responseBody.tarea.estadoId, 1)
+    assert.equal(responseBody.tarea.estadoId, ctx.request.body().estadoId)
   })
 
   // TEST: TIEMPO PASADO
@@ -206,7 +221,6 @@ test.group('Tareas', (group) => {
     await tareaController.indexByEstado(ctx)
 
     const responseBody = ctx.response.getBody()
-    console.log(responseBody)
     // Verificar el estado de la respuesta
     assert.equal(ctx.response.getStatus(), 200)
     assert.isArray(responseBody)
@@ -217,35 +231,35 @@ test.group('Tareas', (group) => {
   })
 
   // TEST: INDEX BY ESTADO 404
-  // test('debería devolver 404 cuando el estado no existe', async ({ assert }) => {
-  //   const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
-  //   const ctx = await testUtils.createHttpContext()
+  test('debería devolver 404 cuando el estado no existe', async ({ assert }) => {
+    const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
+    const ctx = await testUtils.createHttpContext()
 
-  //   ctx.params = { estado: 'no se va a hacer' }
+    ctx.params = { estado: 'no se va a hacer' }
 
-  //   await tareaController.indexByEstado(ctx)
+    await tareaController.indexByEstado(ctx)
 
-  //   const responseBody = ctx.response.getBody()
+    const responseBody = ctx.response.getBody()
 
-  //   assert.equal(ctx.response.getStatus(), 404)
-  //   assert.property(responseBody, 'message')
-  //   assert.equal(responseBody.message, 'Estado no encontrado')
-  // })
+    assert.equal(ctx.response.getStatus(), 404)
+    assert.property(responseBody, 'message')
+    assert.equal(responseBody.message, 'Estado no encontrado')
+  })
 
   // TEST: INDEX BY ESTADO 404
-  // test('debería devolver 404 cuando no hay tareas para el estado proporcionado', async ({ assert }) => {
-  //   const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
-  //   const ctx = await testUtils.createHttpContext()
+  test('debería devolver 404 cuando no hay tareas para el estado proporcionado', async ({ assert }) => {
+    const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
+    const ctx = await testUtils.createHttpContext()
 
-  //   ctx.params = { estado: 'Eliminada' }  // Asumimos que no hay tareas completadas en el repositorio
+    ctx.params = { estado: 'completada' }  // Asumimos que no hay tareas completadas en el repositorio
 
-  //   await tareaController.indexByEstado(ctx)
+    await tareaController.indexByEstado(ctx)
 
-  //   const responseBody = ctx.response.getBody()
+    const responseBody = ctx.response.getBody()
 
-  //   assert.equal(ctx.response.getStatus(), 404)
-  //   assert.property(responseBody, 'message')
-  //   assert.equal(responseBody.message, 'No se encontraron tareas para el estado proporcionado')
-  // })
+    assert.equal(ctx.response.getStatus(), 404)
+    assert.property(responseBody, 'message')
+    assert.equal(responseBody.message, 'No se encontraron tareas para el estado proporcionado')
+  })
 
 })

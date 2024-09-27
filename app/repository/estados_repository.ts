@@ -4,6 +4,10 @@ export default class EstadoRepository {
     constructor() {
     }
 
+    async index() {
+        return await Estado.all();
+    }
+
     async find(id: number) {
         return await Estado.find(id);
     }

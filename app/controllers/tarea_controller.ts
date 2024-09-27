@@ -138,16 +138,21 @@ export default class TareasController {
 
 
     // ELIMINAR UNA TAREA
-    public async delete({ params, response }: HttpContext) {  //borrado logico
+    public async delete({ params, response }: HttpContext) {
         try {
             const tarea = await this.tareaRepository.find(params.id)
             if (!tarea) {
                 return response.status(404).json({ message: 'Tarea no encontrada' })
             }
+            if (tarea.deleted) {
+                return response.status(400).json({ message: 'La tarea ya está marcada como eliminada' })
+            }
             tarea.deleted = true
-            await this.tareaRepository.save(tarea)
-            return response.status(200).json({ message: 'Tarea marcada como eliminada correctamente' })
+            const deletedTarea = await this.tareaRepository.save(tarea)
+
+            return response.status(200).json({ message: 'Tarea marcada como eliminada correctamente', deletedTarea })
         } catch (error) {
+            console.error('Error al marcar la tarea como eliminada:', error)
             return response.status(500).json({ message: 'Error al marcar la tarea como eliminada', error: error.message })
         }
     }
