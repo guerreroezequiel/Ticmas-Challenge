@@ -28,48 +28,64 @@ test.group('Tareas', () => {
         id: 2,
         titulo: 'Tarea 2',
         descripcion: 'Descripción de la tarea 2',
-        estadoId: 1,
+        estadoId: 2,
         deleted: false,
         createdAt: DateTime.fromISO("2024-09-26T20:21:27.218+00:00"),
         updatedAt: DateTime.now(),
       } as Tarea,
     ];
 
+    // Buscar tarea por ID
     public async find(id: number): Promise<Tarea | null> {
       return this.tareas.find(tarea => tarea.id === id) || null;
     }
 
+    // Guardar tarea
     public async save(tarea: Tarea): Promise<Tarea> {
       const index = this.tareas.findIndex(t => t.id === tarea.id);
 
       if (index === -1) {
-        // Si no existe, le asignamos un nuevo ID
         tarea.id = this.tareas.length + 1;
         this.tareas.push(tarea);
       } else {
-        // Si ya existe, la actualizamos
         this.tareas[index] = tarea;
       }
 
       return tarea;
     }
 
+    public async getTareasPorEstado(estadoId: number): Promise<Tarea[]> {
+      return this.tareas.filter(tarea => tarea.estadoId === estadoId)
+    }
+
   }
 
   // FAKE ESTADO REPOSITORY
   class FakeEstadoRepository extends EstadoRepository {
-    async find(): Promise<Estado | null> {
-      const estado = new Estado()
-      estado.merge({
-        id: 1,
-        nombre: 'Pendiente'
-      })
-      return estado
+
+    private estados: Estado[] = [
+      { id: 1, nombre: 'En Progreso' } as Estado,
+      { id: 2, nombre: 'Pendiente' } as Estado,
+      { id: 3, nombre: 'Completada' } as Estado,
+      { id: 4, nombre: 'Eliminada' } as Estado,
+    ];
+
+    // Buscar estado por ID
+    public async find(id: number): Promise<Estado | null> {
+      return this.estados.find(estado => estado.id === id) || null;
+    }
+
+    // Buscar estado por nombre
+    public async getEstadoByName(nombre: string): Promise<Estado | null> {
+      return this.estados.find(estado => estado.nombre === nombre) || null
     }
   }
   // SWAP REPOSITORIES
   app.container.swap(TareaRepository, () => new FakeTareaRepository())
   app.container.swap(EstadoRepository, () => new FakeEstadoRepository())
+
+
+
 
 
   // TEST: INDEX
@@ -145,7 +161,6 @@ test.group('Tareas', () => {
   })
 
 
-
   // TEST: UPDATE
   test('actualizar una tarea', async ({ assert }) => {
     const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
@@ -166,27 +181,6 @@ test.group('Tareas', () => {
     assert.equal(responseBody.id, 1)
     assert.equal(responseBody.titulo, 'Tarea 1 Actualizada')
     assert.equal(responseBody.descripcion, 'Descripción de la tarea 1 actualizada')
-  })
-
-
-  // TEST: INDEX BY ESTADO
-  test('obtener tareas por estado', async ({ assert }) => {
-    const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
-    const ctx = await testUtils.createHttpContext()
-
-    ctx.params = { estado: 'Pendiente' }
-
-    await tareaController.indexByEstado(ctx)
-
-    const responseBody = ctx.response.getBody()
-
-    assert.equal(ctx.response.getStatus(), 200)
-    assert.isArray(responseBody)
-    assert.isNotEmpty(responseBody)
-    assert.property(responseBody[0], 'id')
-    assert.property(responseBody[0], 'titulo')
-    assert.property(responseBody[0], 'estadoNombre')
-    assert.equal(responseBody[0].estadoNombre, 'Pendiente')
   })
 
 
@@ -242,4 +236,58 @@ test.group('Tareas', () => {
     assert.property(responseBody, 'fechaActual')
     assert.property(responseBody, 'fechaCreacion')
   })
+
+  // TEST: INDEX BY ESTADO
+  test('debería devolver tareas cuando el estado pendiente', async ({ assert }) => {
+    const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
+    const ctx = await testUtils.createHttpContext()
+
+    // Simular los parámetros de la solicitud
+    ctx.params = { estado: 'Pendiente' }
+
+    await tareaController.indexByEstado(ctx)
+
+    const responseBody = ctx.response.getBody()
+
+    // Verificar el estado de la respuesta
+    assert.equal(ctx.response.getStatus(), 200)
+    assert.isArray(responseBody)
+    assert.lengthOf(responseBody, 1)  // Cambia según cuántas tareas tienes
+    assert.property(responseBody[0], 'titulo')
+    assert.property(responseBody[0], 'estadoNombre')
+    assert.equal(responseBody[0].estadoNombre, 'Pendiente')
+  })
+
+  // TEST: INDEX BY ESTADO 404
+  test('debería devolver 404 cuando el estado no existe', async ({ assert }) => {
+    const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
+    const ctx = await testUtils.createHttpContext()
+
+    ctx.params = { estado: 'no se va a hacer' }
+
+    await tareaController.indexByEstado(ctx)
+
+    const responseBody = ctx.response.getBody()
+
+    assert.equal(ctx.response.getStatus(), 404)
+    assert.property(responseBody, 'message')
+    assert.equal(responseBody.message, 'Estado no encontrado')
+  })
+
+  // TEST: INDEX BY ESTADO 404
+  test('debería devolver 404 cuando no hay tareas para el estado proporcionado', async ({ assert }) => {
+    const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
+    const ctx = await testUtils.createHttpContext()
+
+    ctx.params = { estado: 'Eliminada' }  // Asumimos que no hay tareas completadas en el repositorio
+
+    await tareaController.indexByEstado(ctx)
+
+    const responseBody = ctx.response.getBody()
+
+    assert.equal(ctx.response.getStatus(), 404)
+    assert.property(responseBody, 'message')
+    assert.equal(responseBody.message, 'No se encontraron tareas para el estado proporcionado')
+  })
+
 })

@@ -11,4 +11,8 @@ export default class EstadoRepository {
     async save(estado: Estado): Promise<Estado> {
         return await estado.save()
     }
+
+    async getEstadoByName(nombre: string) {
+        return await Estado.query().where('nombre', nombre).first()
+    }
 }

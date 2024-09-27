@@ -1,6 +1,5 @@
 import { HttpContext } from '@adonisjs/core/http'
 import Tarea from '#models/tarea'
-import Estado from '#models/estado'
 import { DateTime } from 'luxon'
 import TareaRepository from '#repository/tareas_repository'
 import EstadoRepository from '#repository/estados_repository'
@@ -97,20 +96,18 @@ export default class TareasController {
     //TAREAS POR ESTADO
     public async indexByEstado({ params, response }: HttpContext) {
         const nombreEstado = params.estado
-
         if (!nombreEstado) {
             return response.status(400).json({ message: 'El parámetro estado es requerido' })
         }
 
         try {
             // buscar el estado por su nombre
-            const estado = await Estado.query().where('nombre', nombreEstado).first()
-
+            const estado = await this.estadoRepository.getEstadoByName(nombreEstado)
             if (!estado) {
                 return response.status(404).json({ message: 'Estado no encontrado' })
             }
             const estadoId = estado.id
-
+            console.log('estadoId:  ' + estadoId)
             if (!estadoId) {
                 return response.status(500).json({ message: 'Error al obtener el ID del estado' })
             }
@@ -119,6 +116,7 @@ export default class TareasController {
             const tareas = await this.tareaRepository.getTareasPorEstado(estadoId)
 
             if (tareas.length === 0) {
+                console.log(tareas.length)
                 return response.status(404).json({ message: 'No se encontraron tareas para el estado proporcionado' })
             }
 
