@@ -2,7 +2,8 @@ import env from '#start/env'
 import { defineConfig } from '@adonisjs/lucid'
 
 const dbConfig = defineConfig({
-  connection: 'testing',
+  connection: env.get('NODE_ENV') === 'test' ? 'testing' : 'mysql',
+
   connections: {
     testing: {
       client: 'sqlite',
