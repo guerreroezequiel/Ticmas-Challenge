@@ -1,6 +1,4 @@
-import Tarea from '#models/tarea'
 import TareaRepository from '#repository/tareas_repository'
-import app from '@adonisjs/core/services/app'
 import { test } from '@japa/runner'
 import TareaController from '#controllers/tarea_controller'
 import testUtils from '@adonisjs/core/services/test_utils'
@@ -9,45 +7,26 @@ import Estado from '#models/estado'
 import EstadoController from '#controllers/estado_controller'
 
 
+
 test.group('Tareas', (group) => {
 
-  // FAKE TAREA REPOSITORY
-  class FakeTareaRepository extends TareaRepository {
-
-    private tareas: Tarea[] = []
-
-  }
-
-  // FAKE ESTADO REPOSITORY
-  class FakeEstadoRepository extends EstadoRepository {
-
-    private estados: Estado[] = [
-    ]
-
-  }
-  // SWAP REPOSITORIES
-  group.setup(() => {
-    app.container.swap(TareaRepository, () => new FakeTareaRepository())
-    app.container.swap(EstadoRepository, () => new FakeEstadoRepository())
-  })
-
-
-
+  // Iniciar una transacción global para cada grupo de pruebas, apunta a la base de datos de testing
+  group.each.setup(() => testUtils.db().withGlobalTransaction())
   ////////////TESTS////////////
 
   // TEST: comprobar tareas
   test('obtener todas las tareas', async ({ assert }) => {
-    const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
+    const tareaController = new TareaController(new TareaRepository(), new EstadoRepository())
     const ctx = await testUtils.createHttpContext()
 
     await tareaController.index(ctx)
 
     const tareas = ctx.response.getBody()
+    console.log('tareas:' + tareas.length)
 
     assert.equal(ctx.response.getStatus(), 200)
     assert.isArray(tareas)
     assert.isNotEmpty(tareas)
-    console.log('tareas:' + tareas.length)
   })
 
   //TEST: comprobar estados
@@ -72,7 +51,7 @@ test.group('Tareas', (group) => {
 
   // TEST: SHOW
   test('obtener una tarea específica', async ({ assert }) => {
-    const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
+    const tareaController = new TareaController(new TareaRepository(), new EstadoRepository())
     const ctx = await testUtils.createHttpContext()
 
     ctx.params = { id: 1 }
@@ -95,7 +74,7 @@ test.group('Tareas', (group) => {
 
   // TEST: SHOW 404
   test('devolver un 404 si la tarea no se encuentra', async ({ assert }) => {
-    const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
+    const tareaController = new TareaController(new TareaRepository(), new EstadoRepository())
     const ctx = await testUtils.createHttpContext()
 
     ctx.params = { id: 999 }
@@ -109,7 +88,7 @@ test.group('Tareas', (group) => {
 
   // TEST: CREATE
   test('crear una tarea', async ({ assert }) => {
-    const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
+    const tareaController = new TareaController(new TareaRepository(), new EstadoRepository())
     const ctx = await testUtils.createHttpContext()
 
     ctx.request.updateBody({
@@ -134,7 +113,7 @@ test.group('Tareas', (group) => {
 
   // TEST: UPDATE titulo o descripción
   test('actualizar una tarea', async ({ assert }) => {
-    const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
+    const tareaController = new TareaController(new TareaRepository(), new EstadoRepository())
     const ctx = await testUtils.createHttpContext()
 
     ctx.params = { id: 1 }
@@ -157,7 +136,7 @@ test.group('Tareas', (group) => {
 
   // TEST: DELETE
   test('eliminar una tarea (borrado lógico)', async ({ assert }) => {
-    const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
+    const tareaController = new TareaController(new TareaRepository(), new EstadoRepository())
     const ctx = await testUtils.createHttpContext()
 
     ctx.params = { id: 2 }
@@ -165,7 +144,6 @@ test.group('Tareas', (group) => {
     await tareaController.delete(ctx)
 
     const responseBody = ctx.response.getBody()
-    console.log(responseBody)
     assert.equal(ctx.response.getStatus(), 200)
     assert.equal(ctx.response.getStatus(), 200)
     assert.isObject(responseBody)
@@ -176,11 +154,11 @@ test.group('Tareas', (group) => {
 
   // TEST: actualizar ESTADO
   test('cambiar el estado de una tarea', async ({ assert }) => {
-    const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
+    const tareaController = new TareaController(new TareaRepository(), new EstadoRepository())
     const ctx = await testUtils.createHttpContext()
 
     ctx.params = { id: 1 }
-    ctx.request.updateBody({ estadoId: 4 })
+    ctx.request.updateBody({ estadoId: 3 })
 
     await tareaController.cambiarEstado(ctx)
 
@@ -194,7 +172,7 @@ test.group('Tareas', (group) => {
 
   // TEST: TIEMPO PASADO
   test('calcular tiempo pasado desde la creación de una tarea', async ({ assert }) => {
-    const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
+    const tareaController = new TareaController(new TareaRepository(), new EstadoRepository())
     const ctx = await testUtils.createHttpContext()
 
     ctx.params = { id: 1 }
@@ -212,7 +190,7 @@ test.group('Tareas', (group) => {
 
   // TEST: INDEX BY ESTADO
   test('debería devolver tareas cuando el estado pendiente', async ({ assert }) => {
-    const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
+    const tareaController = new TareaController(new TareaRepository(), new EstadoRepository())
 
     const ctx = await testUtils.createHttpContext()
 
@@ -232,7 +210,7 @@ test.group('Tareas', (group) => {
 
   // TEST: INDEX BY ESTADO 404
   test('debería devolver 404 cuando el estado no existe', async ({ assert }) => {
-    const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
+    const tareaController = new TareaController(new TareaRepository(), new EstadoRepository())
     const ctx = await testUtils.createHttpContext()
 
     ctx.params = { estado: 'no se va a hacer' }
@@ -248,10 +226,10 @@ test.group('Tareas', (group) => {
 
   // TEST: INDEX BY ESTADO 404
   test('debería devolver 404 cuando no hay tareas para el estado proporcionado', async ({ assert }) => {
-    const tareaController = new TareaController(new FakeTareaRepository(), new FakeEstadoRepository())
+    const tareaController = new TareaController(new TareaRepository(), new EstadoRepository())
     const ctx = await testUtils.createHttpContext()
 
-    ctx.params = { estado: 'completada' }  // Asumimos que no hay tareas completadas en el repositorio
+    ctx.params = { estado: 'eliminada' }  // Asumimos que no hay tareas con estado eliminada en el repositorio
 
     await tareaController.indexByEstado(ctx)
 
@@ -261,5 +239,6 @@ test.group('Tareas', (group) => {
     assert.property(responseBody, 'message')
     assert.equal(responseBody.message, 'No se encontraron tareas para el estado proporcionado')
   })
+
 
 })

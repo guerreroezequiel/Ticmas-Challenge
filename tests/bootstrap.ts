@@ -12,12 +12,17 @@ export const plugins: Config['plugins'] = [
 ]
 
 export const runnerHooks: Required<Pick<Config, 'setup' | 'teardown'>> = {
-  setup: [],
+  setup: [
+    () => testUtils.db().migrate(),
+    () => testUtils.db().seed(),
+  ],
   teardown: [],
 }
 
+
+
 export const configureSuite: Config['configureSuite'] = (suite) => {
-  if (['functional'].includes(suite.name)) {
+  if (['functional',].includes(suite.name)) {
     console.log('Starting the HTTP server')
     return suite.setup(() => testUtils.httpServer().start())
   }

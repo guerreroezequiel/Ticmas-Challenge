@@ -2,8 +2,24 @@ import env from '#start/env'
 import { defineConfig } from '@adonisjs/lucid'
 
 const dbConfig = defineConfig({
-  connection: 'mysql',
+  connection: 'testing',
   connections: {
+    testing: {
+      client: 'sqlite',
+      connection: {
+        filename: process.env.SQLITE_DB_PATH || 'database/test.sqlite',
+      },
+      useNullAsDefault: true,
+      debug: true,
+      migrations: {
+        naturalSort: true,
+        paths: ['database/migrations'],
+      },
+      seeders: {
+        paths: ['database/seeders/testing'],
+      },
+    },
+
     mysql: {
       client: 'mysql2',
       connection: {
